@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dados sensíveis / bases brutas
+dados/
+Saida/Dados/
+saida/Dados/
+
+# Outputs gerados (HTML das rodadas)
+output/
+
+# Arquivos temporários
+*.tmp
+*.log

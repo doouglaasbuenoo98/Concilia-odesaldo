@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conciliacao de Estoque - Recebimentos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #e0e0e0; }
+
+  /* HEADER */
+  header {
+    background: #111;
+    border-bottom: 2px solid #1db954;
+    color: white;
+    padding: 18px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { font-size: 20px; font-weight: 600; color: #1db954; }
+  header .meta { font-size: 12px; opacity: 0.55; text-align: right; line-height: 1.7; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+
+  /* ── PAINEL ─────────────────────────────────── */
+  .painel {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 24px;
+    background: #141414;
+    border: 1px solid #1f1f1f;
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  }
+
+  /* Donut */
+  .donut-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .donut-container {
+    position: relative;
+    width: 180px;
+    height: 180px;
+  }
+  .donut-container canvas { display: block; }
+  .donut-centro {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+  }
+  .donut-centro .pct  { font-size: 32px; font-weight: 700; color: #1db954; line-height: 1; }
+  .donut-centro .sub  { font-size: 11px; color: #666; margin-top: 4px; }
+  .donut-titulo { font-size: 13px; color: #888; text-align: center; }
+
+  /* Métricas direita */
+  .painel-direita {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .painel-titulo {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ccc;
+    border-bottom: 1px solid #222;
+    padding-bottom: 10px;
+  }
+
+  .metricas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .metrica {
+    background: #1a1a1a;
+    border-radius: 10px;
+    padding: 16px;
+    border-left: 3px solid #333;
+  }
+  .metrica .m-numero { font-size: 28px; font-weight: 700; line-height: 1; }
+  .metrica .m-label  { font-size: 11px; color: #666; margin-top: 5px; }
+  .metrica .m-pct    { font-size: 11px; font-weight: 600; margin-top: 6px; }
+  .metrica.ok      { border-color: #1db954; } .metrica.ok .m-numero      { color: #1db954; } .metrica.ok .m-pct      { color: #1db954; }
+  .metrica.so-wms  { border-color: #f59e0b; } .metrica.so-wms .m-numero  { color: #f59e0b; } .metrica.so-wms .m-pct  { color: #f59e0b; }
+  .metrica.so-erp  { border-color: #3b82f6; } .metrica.so-erp .m-numero  { color: #3b82f6; } .metrica.so-erp .m-pct  { color: #3b82f6; }
+  .metrica.div-qtd { border-color: #ef4444; } .metrica.div-qtd .m-numero { color: #ef4444; } .metrica.div-qtd .m-pct { color: #ef4444; }
+
+  /* Barra de progresso geral */
+  .barra-geral-wrap { margin-top: 4px; }
+  .barra-geral-label { display: flex; justify-content: space-between; font-size: 11px; color: #555; margin-bottom: 6px; }
+  .barra-geral {
+    width: 100%;
+    height: 10px;
+    background: #1a1a1a;
+    border-radius: 999px;
+    overflow: hidden;
+    display: flex;
+  }
+  .barra-seg { height: 100%; transition: width .6s ease; }
+  .barra-seg.ok      { background: #1db954; }
+  .barra-seg.so-wms  { background: #f59e0b; }
+  .barra-seg.so-erp  { background: #3b82f6; }
+  .barra-seg.div-qtd { background: #ef4444; }
+
+  .legenda { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+  .legenda-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #888; }
+  .legenda-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── CARDS (total) ─────────────────────────── */
+  .total-bar {
+    background: #141414;
+    border: 1px solid #1f1f1f;
+    border-radius: 10px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: #888;
+  }
+  .total-bar strong { color: #1db954; font-size: 22px; font-weight: 700; }
+
+  /* ── ABAS ──────────────────────────────────── */
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tab-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    background: #1a1a1a;
+    color: #888;
+    transition: background .2s, color .2s;
+  }
+  .tab-btn:hover { background: #222; color: #ccc; }
+  .tab-btn.ativo { background: #1e1e1e; color: #1db954; border-bottom: 2px solid #1db954; }
+
+  .tab-content {
+    background: #1e1e1e;
+    border-radius: 0 8px 8px 8px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    display: none;
+  }
+  .tab-content.ativo { display: block; }
+
+  /* Barra de ações */
+  .acoes-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .filtro-wrap input {
+    padding: 8px 14px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    background: #121212;
+    color: #e0e0e0;
+    width: 320px;
+  }
+  .filtro-wrap input:focus { border-color: #1db954; box-shadow: 0 0 0 2px rgba(29,185,84,.2); }
+  .filtro-wrap input::placeholder { color: #555; }
+
+  .btn-exportar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    background: transparent;
+    border: 1px solid #1db954;
+    color: #1db954;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, color .2s;
+    white-space: nowrap;
+  }
+  .btn-exportar:hover { background: #1db954; color: #111; }
+
+  /* Tabela */
+  .table-wrap { overflow-x: auto; }
+  .tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tabela th {
+    background: #111;
+    color: #1db954;
+    padding: 10px 14px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 2px solid #1db954;
+  }
+  .tabela td { padding: 9px 14px; border-bottom: 1px solid #222; white-space: nowrap; color: #d0d0d0; }
+  .tabela tr:hover td { background: #252525; }
+  .tabela tr:nth-child(even) td { background: #1a1a1a; }
+  .tabela tr:nth-child(even):hover td { background: #252525; }
+
+  .vazio { color: #555; font-style: italic; padding: 16px 0; }
+
+  .badge {
+    display: inline-block;
+    min-width: 22px;
+    padding: 1px 6px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 6px;
+    color: #111;
+  }
+  .badge.ok      { background: #1db954; }
+  .badge.so-wms  { background: #f59e0b; }
+  .badge.so-erp  { background: #3b82f6; }
+  .badge.div-qtd { background: #ef4444; }
+
+  footer { text-align: center; color: #333; font-size: 11px; padding: 28px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex; align-items:center; gap:16px;">
+    <a href="index.html" title="Voltar a tela inicial" style="
+      display:flex; align-items:center; gap:6px;
+      color:#1db954; text-decoration:none;
+      font-size:13px; font-weight:600;
+      border:1px solid #1db954; border-radius:6px;
+      padding:6px 12px; transition: background .2s, color .2s;
+      white-space:nowrap;
+    " onmouseover="this.style.background='#1db954';this.style.color='#111'"
+       onmouseout="this.style.background='transparent';this.style.color='#1db954'">
+      &#8592; Inicio
+    </a>
+    <div>
+      <h1>Conciliacao de Recebimentos</h1>
+      <div style="font-size:13px; opacity:.7; margin-top:3px; color:#aaa;">WMS vs ERP</div>
+    </div>
+  </div>
+  <div class="meta">
+    <div>WMS: <strong style="color:#ddd;">{{WMS_PATH}}</strong></div>
+    <div>ERP: <strong style="color:#ddd;">{{ERP_PATH}}</strong></div>
+    <div>Gerado em {{DATA_GERACAO}}</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- PAINEL VISUAL -->
+  <div class="painel">
+
+    <!-- Donut -->
+    <div class="donut-wrap">
+      <div class="donut-container">
+        <canvas id="donutChart" width="180" height="180"></canvas>
+        <div class="donut-centro">
+          <div class="pct">{{PCT_OK}}%</div>
+          <div class="sub">Conciliado</div>
+        </div>
+      </div>
+      <div class="donut-titulo">Distribuicao dos Registros</div>
+    </div>
+
+    <!-- Métricas + barra -->
+    <div class="painel-direita">
+      <div class="painel-titulo">Resumo da Conciliacao &nbsp;<span style="color:#555;font-size:12px;font-weight:400;">Total: {{TOTAL}} registros</span></div>
+
+      <div class="metricas">
+        <div class="metrica ok">
+          <div class="m-numero">{{QTD_OK}}</div>
+          <div class="m-label">Conciliados OK</div>
+          <div class="m-pct">{{PCT_OK}}%</div>
+        </div>
+        <div class="metrica so-wms">
+          <div class="m-numero">{{QTD_SO_WMS}}</div>
+          <div class="m-label">So no WMS</div>
+          <div class="m-pct">{{PCT_SO_WMS}}%</div>
+        </div>
+        <div class="metrica so-erp">
+          <div class="m-numero">{{QTD_SO_ERP}}</div>
+          <div class="m-label">So no ERP</div>
+          <div class="m-pct">{{PCT_SO_ERP}}%</div>
+        </div>
+        <div class="metrica div-qtd">
+          <div class="m-numero">{{QTD_DIV_QTD}}</div>
+          <div class="m-label">Div. Quantidade</div>
+          <div class="m-pct">{{PCT_DIV_QTD}}%</div>
+        </div>
+      </div>
+
+      <div class="barra-geral-wrap">
+        <div class="barra-geral-label">
+          <span>Distribuicao visual</span>
+          <span>{{TOTAL}} registros</span>
+        </div>
+        <div class="barra-geral">
+          <div class="barra-seg ok"      style="width:{{PCT_OK}}%"></div>
+          <div class="barra-seg so-wms"  style="width:{{PCT_SO_WMS}}%"></div>
+          <div class="barra-seg so-erp"  style="width:{{PCT_SO_ERP}}%"></div>
+          <div class="barra-seg div-qtd" style="width:{{PCT_DIV_QTD}}%"></div>
+        </div>
+        <div class="legenda">
+          <div class="legenda-item"><div class="legenda-dot" style="background:#1db954"></div> Conciliados OK</div>
+          <div class="legenda-item"><div class="legenda-dot" style="background:#f59e0b"></div> So no WMS</div>
+          <div class="legenda-item"><div class="legenda-dot" style="background:#3b82f6"></div> So no ERP</div>
+          <div class="legenda-item"><div class="legenda-dot" style="background:#ef4444"></div> Div. Quantidade</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABAS -->
+  <div class="tabs">
+    <button class="tab-btn ativo" onclick="abrirAba('ok', this)">
+      Conciliados <span class="badge ok">{{QTD_OK}}</span>
+    </button>
+    <button class="tab-btn" onclick="abrirAba('so-wms', this)">
+      So no WMS <span class="badge so-wms">{{QTD_SO_WMS}}</span>
+    </button>
+    <button class="tab-btn" onclick="abrirAba('so-erp', this)">
+      So no ERP <span class="badge so-erp">{{QTD_SO_ERP}}</span>
+    </button>
+    <button class="tab-btn" onclick="abrirAba('div-qtd', this)">
+      Div. Quantidade <span class="badge div-qtd">{{QTD_DIV_QTD}}</span>
+    </button>
+  </div>
+
+  <div id="aba-ok" class="tab-content ativo">
+    <div class="acoes-wrap">
+      <div class="filtro-wrap"><input type="text" placeholder="Filtrar por NF, SKU, descricao..." onkeyup="filtrar(this, 'aba-ok')"></div>
+      <button class="btn-exportar" onclick="exportarCSV('aba-ok', 'conciliados_ok')">&#8595; Exportar CSV</button>
+    </div>
+    <div class="table-wrap">{{TABELA_OK}}</div>
+  </div>
+
+  <div id="aba-so-wms" class="tab-content">
+    <div class="acoes-wrap">
+      <div class="filtro-wrap"><input type="text" placeholder="Filtrar por NF, SKU, descricao..." onkeyup="filtrar(this, 'aba-so-wms')"></div>
+      <button class="btn-exportar" onclick="exportarCSV('aba-so-wms', 'so_no_wms')">&#8595; Exportar CSV</button>
+    </div>
+    <div class="table-wrap">{{TABELA_SO_WMS}}</div>
+  </div>
+
+  <div id="aba-so-erp" class="tab-content">
+    <div class="acoes-wrap">
+      <div class="filtro-wrap"><input type="text" placeholder="Filtrar por NF, SKU, descricao..." onkeyup="filtrar(this, 'aba-so-erp')"></div>
+      <button class="btn-exportar" onclick="exportarCSV('aba-so-erp', 'so_no_erp')">&#8595; Exportar CSV</button>
+    </div>
+    <div class="table-wrap">{{TABELA_SO_ERP}}</div>
+  </div>
+
+  <div id="aba-div-qtd" class="tab-content">
+    <div class="acoes-wrap">
+      <div class="filtro-wrap"><input type="text" placeholder="Filtrar por NF, SKU, descricao..." onkeyup="filtrar(this, 'aba-div-qtd')"></div>
+      <button class="btn-exportar" onclick="exportarCSV('aba-div-qtd', 'divergencia_quantidade')">&#8595; Exportar CSV</button>
+    </div>
+    <div class="table-wrap">{{TABELA_DIV_QTD}}</div>
+  </div>
+
+</div>
+
+<footer>Conciliacao de Estoque &mdash; {{DATA_GERACAO}}</footer>
+
+<script>
+// ── Donut chart via Canvas API ──────────────────
+(function() {
+  const dados = [
+    { valor: {{QTD_OK}},      cor: '#1db954' },
+    { valor: {{QTD_SO_WMS}},  cor: '#f59e0b' },
+    { valor: {{QTD_SO_ERP}},  cor: '#3b82f6' },
+    { valor: {{QTD_DIV_QTD}}, cor: '#ef4444' },
+  ];
+  const total = dados.reduce((s, d) => s + d.valor, 0);
+  const canvas = document.getElementById('donutChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 90, cy = 90, r = 72, inner = 48;
+  let angulo = -Math.PI / 2;
+
+  if (total === 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, inner, Math.PI * 2, 0, true);
+    ctx.fillStyle = '#222';
+    ctx.fill();
+    return;
+  }
+
+  dados.forEach(d => {
+    if (d.valor === 0) return;
+    const fatia = (d.valor / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, angulo, angulo + fatia);
+    ctx.closePath();
+    ctx.fillStyle = d.cor;
+    ctx.fill();
+    angulo += fatia;
+  });
+
+  // furo central
+  ctx.beginPath();
+  ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+  ctx.fillStyle = '#141414';
+  ctx.fill();
+})();
+
+// ── Abas ───────────────────────────────────────
+function abrirAba(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('ativo'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('ativo'));
+  document.getElementById('aba-' + id).classList.add('ativo');
+  btn.classList.add('ativo');
+}
+
+// ── Filtro ─────────────────────────────────────
+function filtrar(input, abaId) {
+  const termo = input.value.toLowerCase();
+  document.querySelectorAll('#' + abaId + ' .tabela tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(termo) ? '' : 'none';
+  });
+}
+
+// ── Exportar CSV ───────────────────────────────
+function exportarCSV(abaId, nomeArquivo) {
+  const tabela = document.querySelector('#' + abaId + ' .tabela');
+  if (!tabela) return;
+  const linhas = [...tabela.querySelectorAll('tr')].filter(tr => tr.style.display !== 'none');
+  const csv = linhas.map(tr =>
+    [...tr.querySelectorAll('th, td')]
+      .map(cel => '"' + cel.textContent.replace(/"/g, '""').trim() + '"')
+      .join(';')
+  ).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nomeArquivo + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
