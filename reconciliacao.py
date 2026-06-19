@@ -6,6 +6,13 @@ import json
 from datetime import datetime
 from config import WMS_COLUNAS, ERP_COLUNAS, TOLERANCIA_DIAS, CHAVE_CONCILIACAO, WMS_FILTRO_STATUS, ERP_SKU_PADRAO, SUBCLIENTES
 
+GRUPO_CORES = {
+    "LIV UP":    "#ec4899",  # rosa
+    "DRUMATTOS": "#b91c1c",  # vermelho escuro
+}
+_COR_PADRAO = "#6366f1"
+def _cor_grupo(g): return GRUPO_CORES.get(g, _COR_PADRAO)
+
 OUTPUT_DIR      = "output"
 DADOS_DIR       = "dados"
 TEMPLATE_PATH   = os.path.join("templates", "dashboard.html")
@@ -629,14 +636,15 @@ def gerar_dashboard_multi(todos: dict, data_ref: str, wms_files: list, erp_files
         # Cards por grupo desta data
         cards = ""
         for g, r in grupos_d.items():
-            sg  = _slug(g)
-            t   = len(r["ok"]) + len(r["so_erp"]) + len(r["div_qtd"])
-            pct = round(len(r["ok"]) / t * 100, 1) if t else 0
-            cor = "#22c55e" if pct == 100 else "#f59e0b" if pct >= 80 else "#f87171"
+            sg      = _slug(g)
+            t       = len(r["ok"]) + len(r["so_erp"]) + len(r["div_qtd"])
+            pct     = round(len(r["ok"]) / t * 100, 1) if t else 0
+            cor_pct = "#22c55e" if pct == 100 else "#f59e0b" if pct >= 80 else "#f87171"
+            cor_g   = _cor_grupo(g)
             cards += f"""
-        <div class="card-grupo" onclick="abrirGrupo('{d_slug}','{sg}')">
+        <div class="card-grupo" data-color="{cor_g}" onclick="abrirGrupo('{d_slug}','{sg}')">
           <div class="cg-nome">{g}</div>
-          <div class="cg-pct" style="color:{cor};">{pct}%</div>
+          <div class="cg-pct" style="color:{cor_pct};">{pct}%</div>
           <div class="cg-sub">OK</div>
           <div class="cg-detalhe">
             <span style="color:#22c55e;">✓ {len(r['ok'])}</span>
@@ -650,7 +658,8 @@ def gerar_dashboard_multi(todos: dict, data_ref: str, wms_files: list, erp_files
         for g in grupos:
             sg    = _slug(g)
             ativo = ' ativo' if g == grupos[0] else ''
-            btns_grupo += f'<button class="grupo-btn{ativo}" onclick="abrirGrupo(\'{d_slug}\',\'{sg}\')">{g}</button>\n'
+            cor_g = _cor_grupo(g)
+            btns_grupo += f'<button class="grupo-btn{ativo}" data-color="{cor_g}" onclick="abrirGrupo(\'{d_slug}\',\'{sg}\')">{g}</button>\n'
 
         # Seções de grupo desta data
         secoes_grupos = "".join(_secao_grupo(g, r, d_slug, d) for g, r in grupos_d.items())
@@ -701,6 +710,7 @@ def gerar_dashboard_multi(todos: dict, data_ref: str, wms_files: list, erp_files
             })
     dash_json   = json.dumps(dash_data,   ensure_ascii=False)
     grupos_json = json.dumps(grupos_uniq)
+    cores_json  = json.dumps({g: _cor_grupo(g) for g in grupos_uniq})
     datas_json  = json.dumps([d for d in datas if d])
 
     # ── Lookup cross-datas por NF (usado na busca da aba So no ERP) ───────────
@@ -1134,14 +1144,22 @@ function abrirGrupo(d, sg) {{
   const fullSg = d + '_' + sg;
   const sec = document.getElementById('data-section-'+d);
   sec.querySelectorAll('.grupo-section').forEach(el=>el.style.display='none');
-  sec.querySelectorAll('.grupo-btn').forEach(el=>el.classList.remove('ativo'));
-  sec.querySelectorAll('.card-grupo').forEach(el=>el.classList.remove('ativo'));
+  sec.querySelectorAll('.grupo-btn').forEach(el=>{{el.classList.remove('ativo');el.style.background='';el.style.borderColor='';}});
+  sec.querySelectorAll('.card-grupo').forEach(el=>{{el.classList.remove('ativo');el.style.borderColor='';el.style.boxShadow='';}});
   document.getElementById('grupo-'+fullSg).style.display='block';
   sec.querySelectorAll('.grupo-btn').forEach(btn=>{{
-    if(btn.getAttribute('onclick').includes("'"+sg+"'")) btn.classList.add('ativo');
+    if(btn.getAttribute('onclick').includes("'"+sg+"'")) {{
+      btn.classList.add('ativo');
+      const cor=btn.getAttribute('data-color');
+      if(cor){{btn.style.background=cor;btn.style.borderColor=cor;}}
+    }}
   }});
   sec.querySelectorAll('.card-grupo').forEach(c=>{{
-    if(c.getAttribute('onclick') && c.getAttribute('onclick').includes("'"+sg+"'")) c.classList.add('ativo');
+    if(c.getAttribute('onclick') && c.getAttribute('onclick').includes("'"+sg+"'")) {{
+      c.classList.add('ativo');
+      const cor=c.getAttribute('data-color');
+      if(cor){{c.style.borderColor=cor;c.style.boxShadow='0 4px 20px '+cor+'40';}}
+    }}
   }});
 }}
 
@@ -1502,6 +1520,7 @@ function alternarView(view) {{
 // ── Dashboard ────────────────────────────────────────────────────────────────
 const _DASH = {dash_json};
 const _GRUPOS_UNIQ = {grupos_json};
+const _CORES_GRUPO = {cores_json};
 const _DATAS_UNIQ  = {datas_json};
 const NF_LOOKUP    = {nf_lookup_json};
 let _dashIniciado = false;
@@ -1569,8 +1588,6 @@ function desenharBarChart() {{
   const nGrupos = _GRUPOS_UNIQ.length;
   const grpW    = cW / nDatas;
   const barW    = Math.min(grpW / (nGrupos + 1), 40);
-  const cores   = ['#6366f1','#f59e0b','#22c55e','#f87171','#60a5fa'];
-
   // Y axis
   ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top+cH); ctx.stroke();
@@ -1591,7 +1608,7 @@ function desenharBarChart() {{
       const bH  = val === 0 ? 0 : Math.max(2, (val/maxVal)*cH);
       const x   = baseX + gi*barW;
       const y   = pad.top + cH - bH;
-      ctx.fillStyle = cores[gi % cores.length];
+      ctx.fillStyle = _CORES_GRUPO[g] || '#6366f1';
       ctx.fillRect(x, y, barW-2, bH);
       if (val > 0) {{
         ctx.fillStyle='#ddd'; ctx.textAlign='center'; ctx.font='10px sans-serif';
@@ -1607,7 +1624,7 @@ function desenharBarChart() {{
   _GRUPOS_UNIQ.forEach((g, gi) => {{
     const lx = pad.left + gi*120;
     const ly = H - 14;
-    ctx.fillStyle = cores[gi % cores.length];
+    ctx.fillStyle = _CORES_GRUPO[g] || '#6366f1';
     ctx.fillRect(lx, ly-8, 10, 10);
     ctx.fillStyle='#aaa'; ctx.textAlign='left'; ctx.font='11px sans-serif';
     ctx.fillText(g, lx+14, ly);
