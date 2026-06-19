@@ -35,6 +35,8 @@ ERP_SKU_PADRAO = {
 SUBCLIENTES = {
     "NEXXA": {
         "22": "GNÓS",
+        "28": "ANTARIS",
+        "29": "ANTARIS",
         "31": "BOALI",
         "34": "MILKY MOO",
         "35": "HALIPAR",

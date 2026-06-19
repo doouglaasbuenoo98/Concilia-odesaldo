@@ -38,3 +38,19 @@ ERP_SKU_PADRAO = {
     "LIV UP":    r"^[A-Za-z]\d{3}$", # 1 letra + 3 dígitos  ex: P162, S015
     "NEXXA":     r"^\d{7}$",          # exatamente 7 dígitos  ex: 2200343
 }
+
+# Subclientes por grupo: {grupo: {prefixo_sku: nome_cliente}}
+# Múltiplos prefixos podem mapear para o mesmo cliente (ex: 28 e 29 → ANTARIS)
+# SKUs não mapeados vão para "OUTROS"
+SUBCLIENTES = {
+    "NEXXA": {
+        "22": "GNÓS",
+        "28": "ANTARIS",
+        "29": "ANTARIS",
+        "31": "BOALI",
+        "34": "MILKY MOO",
+        "35": "HALIPAR",
+        "36": "MANIA DE CHURRASCO",
+        "37": "BURGUÊS",
+    },
+}

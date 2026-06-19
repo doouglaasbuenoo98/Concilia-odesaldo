@@ -1176,10 +1176,14 @@ def _rodar_grupo(grupo, wms_path, erp_path):
 
     def _split_subgrupos(wms_d, erp_d):
         prefixos_conhecidos = set(subclientes.keys())
-        sub = {}
+        # Agrupa prefixos por nome de cliente (ex: 28 e 29 → ANTARIS)
+        cliente_prefixos: dict = {}
         for prefixo, nome in subclientes.items():
-            erp_sub = erp_d[erp_d["sku"].str[:2] == prefixo].copy()
-            wms_sub = wms_d[wms_d["sku"].str[:2] == prefixo].copy()
+            cliente_prefixos.setdefault(nome, []).append(prefixo)
+        sub = {}
+        for nome, prefixos in cliente_prefixos.items():
+            erp_sub = erp_d[erp_d["sku"].str[:2].isin(prefixos)].copy()
+            wms_sub = wms_d[wms_d["sku"].str[:2].isin(prefixos)].copy()
             if not erp_sub.empty or not wms_sub.empty:
                 sub[nome] = conciliar(wms_sub, erp_sub)
         erp_outros = erp_d[~erp_d["sku"].str[:2].isin(prefixos_conhecidos)].copy()
