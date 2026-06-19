@@ -1449,6 +1449,7 @@ function exportarDivergenciasConsolidadas() {{
   const linhas = [['Data','Grupo','NF','SKU','Descricao','Qtd WMS','Qtd ERP','Diff Original','Diff Restante','Valor Div. (R$)','Valor Ajustado (R$)','Status','Motivo Ajuste','Qtd Ajuste','Data Emissao','Observacao']];
   rows.forEach(row => {{
     if (row.style.display === 'none') return;
+    if (row.closest('[id^="geral-"]')) return;
     const key   = row.getAttribute('data-ajuste-key');
     const data  = row.getAttribute('data-data')  || '';
     const grupo = row.getAttribute('data-grupo') || '';
@@ -1509,6 +1510,7 @@ function exportarSoERPConsolidado() {{
   const linhas  = [];
 
   document.querySelectorAll('.tab-content[id$="-so-erp"]').forEach(tab => {{
+    if (tab.closest('[id^="geral-"]')) return;
     const data  = tab.getAttribute('data-data')  || '';
     const grupo = tab.getAttribute('data-grupo') || '';
     tab.querySelectorAll('.tabela tbody tr').forEach(row => {{

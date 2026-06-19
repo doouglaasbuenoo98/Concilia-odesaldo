@@ -1168,6 +1168,7 @@ function exportarDivergencias() {{
   const linhas  = [];
   document.querySelectorAll('tr[data-ajuste-key]').forEach(row => {{
     if(row.style.display==='none') return;
+    if(row.closest('[id^="geral-"]')) return;
     const data  = row.getAttribute('data-data')  || '';
     const grupo = row.getAttribute('data-grupo') || '';
     const vals  = [...row.querySelectorAll('td')].map(td=>td.textContent.trim());
@@ -1181,6 +1182,7 @@ function exportarSoERP() {{
   const headers = ['Data','Grupo','Pedido','NF','SKU','Unidade','Qtd ERP','Data ERP'];
   const linhas  = [];
   document.querySelectorAll('.tab-content[id$="-so-erp"]').forEach(tab => {{
+    if(tab.closest('[id^="geral-"]')) return;
     const data  = tab.getAttribute('data-data')  || '';
     const grupo = tab.getAttribute('data-grupo') || '';
     tab.querySelectorAll('.tabela tbody tr').forEach(row => {{
