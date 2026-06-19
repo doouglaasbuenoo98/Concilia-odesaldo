@@ -1389,34 +1389,37 @@ function salvarAjuste() {{
 }}
 
 function _aplicarBadge(key, dados) {{
-  // Badge de motivo
-  const badge = document.getElementById('aj-' + key);
-  if (badge) {{ badge.textContent = dados.motivo; badge.style.display = 'inline-block'; }}
+  // Atualiza todos os badges com este key (aba geral + aba subclient podem ter o mesmo)
+  document.querySelectorAll('[id="aj-' + key + '"]').forEach(badge => {{
+    badge.textContent = dados.motivo;
+    badge.style.display = 'inline-block';
+  }});
 
-  // Deducao na celula diff_qtd
-  const row = document.querySelector('tr[data-ajuste-key="' + key + '"]');
-  if (!row) return;
-  const tdDiff = row.querySelector('.td-diff');
-  if (tdDiff) {{
-    const original = parseFloat(tdDiff.getAttribute('data-diff-original') || '0');
-    const origBR   = (original >= 0 ? '+' : '-') + toBR(Math.abs(original), 3);
-    const ajuste   = parseFloat(dados.quantidade || '0');
-    const origAbs  = Math.abs(original);
-    const restante = origAbs - Math.abs(ajuste);
-    if (restante <= 0) {{
-      tdDiff.innerHTML = '<span style="text-decoration:line-through;color:#555;font-size:11px;">' + origBR + '</span> <span style="color:#22c55e;font-weight:700;">0</span>';
-      row.classList.remove('tem-ajuste','tem-parcial');
-      row.classList.add('tem-ajustado');
-    }} else {{
-      const sinal = original < 0 ? '-' : '+';
-      tdDiff.innerHTML = '<span style="text-decoration:line-through;color:#555;font-size:11px;">' + origBR + '</span> <span style="color:#f59e0b;font-weight:700;">' + sinal + toBR(restante, 3) + '</span>';
-      row.classList.remove('tem-ajustado');
-      row.classList.add('tem-ajuste','tem-parcial');
+  // Atualiza todas as linhas com este key (aba geral e aba subclient)
+  const sgs = new Set();
+  document.querySelectorAll('tr[data-ajuste-key="' + key + '"]').forEach(row => {{
+    const tdDiff = row.querySelector('.td-diff');
+    if (tdDiff) {{
+      const original = parseFloat(tdDiff.getAttribute('data-diff-original') || '0');
+      const origBR   = (original >= 0 ? '+' : '-') + toBR(Math.abs(original), 3);
+      const ajuste   = parseFloat(dados.quantidade || '0');
+      const origAbs  = Math.abs(original);
+      const restante = origAbs - Math.abs(ajuste);
+      if (restante <= 0) {{
+        tdDiff.innerHTML = '<span style="text-decoration:line-through;color:#555;font-size:11px;">' + origBR + '</span> <span style="color:#22c55e;font-weight:700;">0</span>';
+        row.classList.remove('tem-ajuste','tem-parcial');
+        row.classList.add('tem-ajustado');
+      }} else {{
+        const sinal = original < 0 ? '-' : '+';
+        tdDiff.innerHTML = '<span style="text-decoration:line-through;color:#555;font-size:11px;">' + origBR + '</span> <span style="color:#f59e0b;font-weight:700;">' + sinal + toBR(restante, 3) + '</span>';
+        row.classList.remove('tem-ajustado');
+        row.classList.add('tem-ajuste','tem-parcial');
+      }}
     }}
-  }}
-
-  const sg = row.getAttribute('data-sg');
-  if (sg) atualizarResumoDivergencia(sg);
+    const sg = row.getAttribute('data-sg');
+    if (sg) sgs.add(sg);
+  }});
+  sgs.forEach(sg => atualizarResumoDivergencia(sg));
 }}
 
 function atualizarResumoDivergencia(sg) {{
