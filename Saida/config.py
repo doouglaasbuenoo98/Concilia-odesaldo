@@ -29,3 +29,16 @@ ERP_FILTRO_TIPO_NF = "N"
 ERP_SKU_PADRAO = {
     "LIV UP": r"^[A-Za-z]\d{3,4}$",
 }
+
+# Subclientes por grupo: {grupo: {prefixo_sku: nome_cliente}}
+# SKUs que não baterem nenhum prefixo são agrupados em "OUTROS"
+SUBCLIENTES = {
+    "NEXXA": {
+        "22": "GNÓS",
+        "31": "BOALI",
+        "34": "MILKY MOO",
+        "35": "HALIPAR",
+        "36": "MANIA DE CHURRASCO",
+        "37": "BURGUÊS",
+    },
+}

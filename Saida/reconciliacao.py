@@ -14,7 +14,7 @@ OUTPUT_DIR  = os.path.join(os.path.dirname(SAIDA_DIR), "output")
 HOME_HTML   = os.path.join(OUTPUT_DIR, "index.html")
 
 sys.path.insert(0, SAIDA_DIR)
-from config import WMS_COLUNAS, ERP_COLUNAS, CHAVE_CONCILIACAO, ERP_SKU_PADRAO, ERP_FILTRO_TIPO_NF
+from config import WMS_COLUNAS, ERP_COLUNAS, CHAVE_CONCILIACAO, ERP_SKU_PADRAO, ERP_FILTRO_TIPO_NF, SUBCLIENTES
 
 
 # ── Carregamento ──────────────────────────────────────────────────────────────
@@ -271,9 +271,206 @@ def _tabela_div_html(df, cols, sg, data_str, grupo):
 <tbody>{rows_html}</tbody></table></div>"""
 
 
+# ── Seção de subgrupo (subclient dentro de NEXXA) ────────────────────────────
+
+def _secao_subgrupo(nome, r, sg_parent, data_str, grupo, is_first=False):
+    ok      = r["ok"]
+    so_erp  = r["so_erp"]
+    div_qtd = r["div_qtd"]
+
+    sub_sg    = sg_parent + "_sub_" + _slug(nome)
+    total_erp = len(ok) + len(so_erp) + len(div_qtd)
+    pct_ok    = round(len(ok) / total_erp * 100, 1) if total_erp else 0
+
+    def pct(n): return round(n / total_erp * 100, 1) if total_erp else 0
+
+    rotulos_ok  = {"pedido": "Pedido", "numero_nf": "NF", "sku": "SKU",
+                   "unidade_erp": "Un.", "quantidade_wms": "Qtd WMS",
+                   "quantidade_erp": "Qtd ERP", "data_erp": "Data"}
+    rotulos_erp = {"pedido": "Pedido", "numero_nf": "NF", "sku": "SKU",
+                   "unidade_erp": "Un.", "quantidade_erp": "Qtd ERP", "data_erp": "Data"}
+
+    cols_ok      = ["pedido", "numero_nf", "sku", "unidade_erp", "quantidade_wms", "quantidade_erp", "data_erp"]
+    cols_so_erp  = ["pedido", "numero_nf", "sku", "unidade_erp", "quantidade_erp", "data_erp"]
+    cols_div_qtd = ["pedido", "numero_nf", "sku", "unidade_erp", "quantidade_wms", "quantidade_erp", "diff_qtd", "valor_div", "data_erp"]
+
+    tab_ok      = _df_para_html(ok,      cols_ok,     rotulos_ok)
+    tab_so_erp  = _df_para_html(so_erp,  cols_so_erp, rotulos_erp)
+    tab_div_qtd = _tabela_div_html(div_qtd, cols_div_qtd, sub_sg, data_str, f"{grupo} / {nome}")
+
+    display = '' if is_first else 'display:none;'
+    return f"""
+<div id="subgrupo-{sub_sg}" class="subgrupo-section" style="{display}">
+  <div class="painel painel-sub">
+    <div class="donut-wrap">
+      <div class="donut-container">
+        <canvas id="donut-{sub_sg}" width="180" height="180"></canvas>
+        <div class="donut-centro">
+          <div class="pct">{pct_ok}%</div>
+          <div class="sub">Conciliado</div>
+        </div>
+      </div>
+      <div class="donut-titulo">{nome}</div>
+    </div>
+    <div class="painel-direita">
+      <div class="painel-titulo">{nome} &nbsp;<span style="color:#555;font-size:12px;font-weight:400;">Base ERP: {total_erp} registros</span></div>
+      <div class="metricas">
+        <div class="metrica ok">
+          <div class="m-numero">{len(ok)}</div>
+          <div class="m-label">Conciliados OK</div>
+          <div class="m-pct">{pct(len(ok))}%</div>
+        </div>
+        <div class="metrica so-erp">
+          <div class="m-numero">{len(so_erp)}</div>
+          <div class="m-label">So no ERP</div>
+          <div class="m-pct">{pct(len(so_erp))}%</div>
+        </div>
+        <div class="metrica div-qtd">
+          <div class="m-numero">{len(div_qtd)}</div>
+          <div class="m-label">Div. Quantidade</div>
+          <div class="m-pct">{pct(len(div_qtd))}%</div>
+        </div>
+      </div>
+      <div class="barra-geral-wrap">
+        <div class="barra-geral-label"><span>Distribuicao (base ERP)</span><span>{total_erp} registros</span></div>
+        <div class="barra-geral">
+          <div class="barra-seg ok"      style="width:{pct(len(ok))}%"></div>
+          <div class="barra-seg so-erp"  style="width:{pct(len(so_erp))}%"></div>
+          <div class="barra-seg div-qtd" style="width:{pct(len(div_qtd))}%"></div>
+        </div>
+        <div class="legenda">
+          <div class="legenda-item"><div class="legenda-dot" style="background:#22c55e"></div> OK</div>
+          <div class="legenda-item"><div class="legenda-dot" style="background:#60a5fa"></div> So ERP</div>
+          <div class="legenda-item"><div class="legenda-dot" style="background:#f87171"></div> Div Qtd</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn ativo" onclick="abrirAba('{sub_sg}','ok',this)">
+      Conciliados <span class="badge ok">{len(ok)}</span>
+    </button>
+    <button class="tab-btn" onclick="abrirAba('{sub_sg}','so-erp',this)">
+      So no ERP <span class="badge so-erp">{len(so_erp)}</span>
+    </button>
+    <button class="tab-btn" onclick="abrirAba('{sub_sg}','div-qtd',this)">
+      Div. Quantidade <span class="badge div-qtd">{len(div_qtd)}</span>
+    </button>
+  </div>
+
+  <div id="{sub_sg}-ok" class="tab-content ativo">
+    <div class="acoes-wrap">
+      <div class="filtro-wrap"><input type="text" placeholder="Filtrar..." onkeyup="filtrar(this,'{sub_sg}-ok')"></div>
+    </div>
+    <div class="table-wrap">{tab_ok}</div>
+  </div>
+  <div id="{sub_sg}-so-erp" class="tab-content" data-data="{data_str}" data-grupo="{grupo} / {nome}">
+    <div class="acoes-wrap">
+      <div class="filtro-wrap"><input type="text" placeholder="Filtrar..." onkeyup="filtrar(this,'{sub_sg}-so-erp')"></div>
+    </div>
+    <div class="table-wrap">{tab_so_erp}</div>
+  </div>
+  <div id="{sub_sg}-div-qtd" class="tab-content">
+    <div class="acoes-wrap">
+      <div class="filtro-wrap"><input type="text" placeholder="Filtrar..." onkeyup="filtrar(this,'{sub_sg}-div-qtd')"></div>
+    </div>
+    {tab_div_qtd}
+  </div>
+</div>"""
+
+
+def _secao_grupo_com_subgrupos(grupo, resultados, data_slug="", data_str=""):
+    ok        = resultados["ok"]
+    so_erp    = resultados["so_erp"]
+    div_qtd   = resultados["div_qtd"]
+    subgrupos = resultados["subgrupos"]
+
+    sg        = (data_slug + "_" if data_slug else "") + _slug(grupo)
+    total_erp = len(ok) + len(so_erp) + len(div_qtd)
+    pct_ok    = round(len(ok) / total_erp * 100, 1) if total_erp else 0
+
+    def pct(n): return round(n / total_erp * 100, 1) if total_erp else 0
+
+    sub_btns = ""
+    for i, (sub_nome, sub_r) in enumerate(subgrupos.items()):
+        sub_total = len(sub_r["ok"]) + len(sub_r["so_erp"]) + len(sub_r["div_qtd"])
+        ativo = ' ativo' if i == 0 else ''
+        sub_btns += (
+            f'<button class="subgrupo-btn{ativo}" '
+            f'onclick="abrirSubgrupo(\'{sg}\',\'{_slug(sub_nome)}\')">'
+            f'{sub_nome} <span style="font-size:11px;opacity:.6;">({sub_total})</span></button>\n'
+        )
+
+    sub_secoes = "".join(
+        _secao_subgrupo(sub_nome, sub_r, sg, data_str, grupo, is_first=(i == 0))
+        for i, (sub_nome, sub_r) in enumerate(subgrupos.items())
+    )
+
+    return f"""
+<div id="grupo-{sg}" class="grupo-section" style="display:none;">
+
+  <div class="painel">
+    <div class="donut-wrap">
+      <div class="donut-container">
+        <canvas id="donut-{sg}" width="180" height="180"></canvas>
+        <div class="donut-centro">
+          <div class="pct">{pct_ok}%</div>
+          <div class="sub">Conciliado</div>
+        </div>
+      </div>
+      <div class="donut-titulo">{grupo} — Total</div>
+    </div>
+    <div class="painel-direita">
+      <div class="painel-titulo">Resumo {grupo} &nbsp;<span style="color:#555;font-size:12px;font-weight:400;">Base ERP: {total_erp} registros</span></div>
+      <div class="metricas">
+        <div class="metrica ok">
+          <div class="m-numero">{len(ok)}</div>
+          <div class="m-label">Conciliados OK</div>
+          <div class="m-pct">{pct(len(ok))}%</div>
+        </div>
+        <div class="metrica so-erp">
+          <div class="m-numero">{len(so_erp)}</div>
+          <div class="m-label">So no ERP</div>
+          <div class="m-pct">{pct(len(so_erp))}%</div>
+        </div>
+        <div class="metrica div-qtd">
+          <div class="m-numero">{len(div_qtd)}</div>
+          <div class="m-label">Div. Quantidade</div>
+          <div class="m-pct">{pct(len(div_qtd))}%</div>
+        </div>
+      </div>
+      <div class="barra-geral-wrap">
+        <div class="barra-geral-label"><span>Distribuicao (base ERP)</span><span>{total_erp} registros</span></div>
+        <div class="barra-geral">
+          <div class="barra-seg ok"      style="width:{pct(len(ok))}%"></div>
+          <div class="barra-seg so-erp"  style="width:{pct(len(so_erp))}%"></div>
+          <div class="barra-seg div-qtd" style="width:{pct(len(div_qtd))}%"></div>
+        </div>
+        <div class="legenda">
+          <div class="legenda-item"><div class="legenda-dot" style="background:#22c55e"></div> OK</div>
+          <div class="legenda-item"><div class="legenda-dot" style="background:#60a5fa"></div> So ERP</div>
+          <div class="legenda-item"><div class="legenda-dot" style="background:#f87171"></div> Div Qtd</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subgrupo-nav">
+    <span class="subgrupo-nav-label">Clientes:</span>
+    {sub_btns}
+  </div>
+
+  {sub_secoes}
+
+</div>"""
+
+
 # ── Seção de grupo (HTML) ─────────────────────────────────────────────────────
 
 def _secao_grupo(grupo, resultados, data_slug="", data_str=""):
+    if "subgrupos" in resultados:
+        return _secao_grupo_com_subgrupos(grupo, resultados, data_slug, data_str)
     ok      = resultados["ok"]
     so_wms  = resultados["so_wms"]
     so_erp  = resultados["so_erp"]
@@ -392,7 +589,15 @@ def _donut_js(grupo, resultados, data_slug=""):
     so_erp  = len(resultados["so_erp"])
     div_qtd = len(resultados["div_qtd"])
     sg = (data_slug + "_" if data_slug else "") + _slug(grupo)
-    return f"  desenharDonut('donut-{sg}', [{ok},{so_erp},{div_qtd}]);\n"
+    js = f"  desenharDonut('donut-{sg}', [{ok},{so_erp},{div_qtd}]);\n"
+    if "subgrupos" in resultados:
+        for sub_nome, sub_r in resultados["subgrupos"].items():
+            sub_sg = sg + "_sub_" + _slug(sub_nome)
+            s_ok  = len(sub_r["ok"])
+            s_erp = len(sub_r["so_erp"])
+            s_div = len(sub_r["div_qtd"])
+            js += f"  desenharDonut('donut-{sub_sg}', [{s_ok},{s_erp},{s_div}]);\n"
+    return js
 
 
 # ── Dashboard principal ───────────────────────────────────────────────────────
@@ -617,6 +822,15 @@ def gerar_dashboard(todos, data_ref):
   .td-valordiv-neg {{ color:#F87171; }}
   footer {{ text-align:center; color:#444; font-size:11px; padding:28px 0; }}
 
+  /* Navegação de subgrupos (subclientes NEXXA) */
+  .subgrupo-nav {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:16px 0 12px; padding:12px 16px; background:#191919; border:1px solid #2d2d2d; border-radius:8px; }}
+  .subgrupo-nav-label {{ font-size:11px; color:#555; font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-right:4px; white-space:nowrap; }}
+  .subgrupo-btn {{ padding:6px 16px; border:1px solid #2d2d2d; border-radius:6px; background:#1a1a1a; color:#888; font-size:12px; font-weight:600; cursor:pointer; transition:all .2s; }}
+  .subgrupo-btn:hover {{ border-color:#a78bfa; color:#c4b5fd; }}
+  .subgrupo-btn.ativo {{ background:#7c3aed; border-color:#7c3aed; color:#fff; }}
+  .subgrupo-section {{ display:none; }}
+  .painel-sub {{ margin-top:0; }}
+
   /* View toggle */
   .view-toggle {{ display:flex; gap:4px; background:#141414; padding:3px; border-radius:8px; border:1px solid #2d2d2d; }}
   .view-btn {{ padding:6px 16px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; color:#666; background:transparent; transition:all .2s; }}
@@ -835,10 +1049,25 @@ function abrirGrupo(d, sg) {{
 }}
 
 function abrirAba(sg, id, btn) {{
-  document.querySelectorAll('#grupo-'+sg+' .tab-content').forEach(el=>el.classList.remove('ativo'));
-  document.querySelectorAll('#grupo-'+sg+' .tab-btn').forEach(el=>el.classList.remove('ativo'));
+  const container = document.getElementById('grupo-'+sg) || document.getElementById('subgrupo-'+sg);
+  if (container) {{
+    container.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('ativo'));
+    container.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('ativo'));
+  }}
   document.getElementById(sg+'-'+id).classList.add('ativo');
   btn.classList.add('ativo');
+}}
+
+function abrirSubgrupo(sgParent, subSlug) {{
+  const parentEl = document.getElementById('grupo-'+sgParent);
+  if (!parentEl) return;
+  parentEl.querySelectorAll('.subgrupo-section').forEach(el=>el.style.display='none');
+  parentEl.querySelectorAll('.subgrupo-btn').forEach(el=>el.classList.remove('ativo'));
+  const target = document.getElementById('subgrupo-'+sgParent+'_sub_'+subSlug);
+  if (target) target.style.display='block';
+  parentEl.querySelectorAll('.subgrupo-btn').forEach(btn=>{{
+    if(btn.getAttribute('onclick')&&btn.getAttribute('onclick').includes("'"+subSlug+"'")) btn.classList.add('ativo');
+  }});
 }}
 
 function filtrar(input, abaId) {{
@@ -943,10 +1172,28 @@ def _rodar_grupo(grupo, wms_path, erp_path):
 
     print(f"  {len(df_erp)} linhas ERP (válidas)")
 
+    subclientes = SUBCLIENTES.get(grupo)  # dict {prefixo: nome} ou None
+
+    def _split_subgrupos(wms_d, erp_d):
+        prefixos_conhecidos = set(subclientes.keys())
+        sub = {}
+        for prefixo, nome in subclientes.items():
+            erp_sub = erp_d[erp_d["sku"].str[:2] == prefixo].copy()
+            wms_sub = wms_d[wms_d["sku"].str[:2] == prefixo].copy()
+            if not erp_sub.empty or not wms_sub.empty:
+                sub[nome] = conciliar(wms_sub, erp_sub)
+        erp_outros = erp_d[~erp_d["sku"].str[:2].isin(prefixos_conhecidos)].copy()
+        wms_outros = wms_d[~wms_d["sku"].str[:2].isin(prefixos_conhecidos)].copy()
+        if not erp_outros.empty:
+            sub["OUTROS"] = conciliar(wms_outros, erp_outros)
+        return sub
+
     # Agrupa por data do ERP (Emissao)
     datas_erp = sorted(df_erp["data"].dropna().dt.date.unique())
     if not datas_erp:
         r = conciliar(df_wms, df_erp)
+        if subclientes:
+            r["subgrupos"] = _split_subgrupos(df_wms, df_erp)
         print(f"  OK:{len(r['ok'])}  WMS:{len(r['so_wms'])}  ERP:{len(r['so_erp'])}  Div:{len(r['div_qtd'])}")
         return {"": r}
 
@@ -954,9 +1201,10 @@ def _rodar_grupo(grupo, wms_path, erp_path):
     for dt in datas_erp:
         erp_d    = df_erp[df_erp["data"].dt.date == dt].copy()
         pedidos  = set(erp_d["pedido"].dropna())
-        # WMS: filtra pelos pedidos do ERP desta data
-        wms_d = df_wms[df_wms["pedido"].isin(pedidos)].copy()
+        wms_d    = df_wms[df_wms["pedido"].isin(pedidos)].copy()
         r = conciliar(wms_d, erp_d)
+        if subclientes:
+            r["subgrupos"] = _split_subgrupos(wms_d, erp_d)
         data_str = f"{dt.day:02d}.{dt.month:02d}"
         print(f"  [{data_str}] OK:{len(r['ok'])}  WMS:{len(r['so_wms'])}  ERP:{len(r['so_erp'])}  Div:{len(r['div_qtd'])}")
         resultados[data_str] = r
