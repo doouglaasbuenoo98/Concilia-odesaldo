@@ -394,10 +394,23 @@ def _secao_grupo_com_subgrupos(grupo, resultados, data_slug="", data_str=""):
     subgrupos = resultados["subgrupos"]
 
     sg        = (data_slug + "_" if data_slug else "") + _slug(grupo)
+    sg_geral  = sg + "_geral"
     total_erp = len(ok) + len(so_erp) + len(div_qtd)
     pct_ok    = round(len(ok) / total_erp * 100, 1) if total_erp else 0
 
     def pct(n): return round(n / total_erp * 100, 1) if total_erp else 0
+
+    rotulos_ok  = {"pedido": "Pedido", "numero_nf": "NF", "sku": "SKU",
+                   "unidade_erp": "Un.", "quantidade_wms": "Qtd WMS",
+                   "quantidade_erp": "Qtd ERP", "data_erp": "Data"}
+    rotulos_erp = {"pedido": "Pedido", "numero_nf": "NF", "sku": "SKU",
+                   "unidade_erp": "Un.", "quantidade_erp": "Qtd ERP", "data_erp": "Data"}
+    cols_ok      = ["pedido", "numero_nf", "sku", "unidade_erp", "quantidade_wms", "quantidade_erp", "data_erp"]
+    cols_so_erp  = ["pedido", "numero_nf", "sku", "unidade_erp", "quantidade_erp", "data_erp"]
+    cols_div_qtd = ["pedido", "numero_nf", "sku", "unidade_erp", "quantidade_wms", "quantidade_erp", "diff_qtd", "valor_div", "data_erp"]
+    tab_ok      = _df_para_html(ok,      cols_ok,     rotulos_ok)
+    tab_so_erp  = _df_para_html(so_erp,  cols_so_erp, rotulos_erp)
+    tab_div_qtd = _tabela_div_html(div_qtd, cols_div_qtd, sg_geral, data_str, grupo)
 
     sub_btns = ""
     for i, (sub_nome, sub_r) in enumerate(subgrupos.items()):
@@ -462,6 +475,41 @@ def _secao_grupo_com_subgrupos(grupo, resultados, data_slug="", data_str=""):
       </div>
     </div>
   </div>
+
+  <!-- Abas gerais (todos os clientes combinados) -->
+  <div id="geral-{sg_geral}">
+    <div class="tabs">
+      <button class="tab-btn ativo" onclick="abrirAba('{sg_geral}','ok',this)">
+        Conciliados <span class="badge ok">{len(ok)}</span>
+      </button>
+      <button class="tab-btn" onclick="abrirAba('{sg_geral}','so-erp',this)">
+        So no ERP <span class="badge so-erp">{len(so_erp)}</span>
+      </button>
+      <button class="tab-btn" onclick="abrirAba('{sg_geral}','div-qtd',this)">
+        Div. Quantidade <span class="badge div-qtd">{len(div_qtd)}</span>
+      </button>
+    </div>
+    <div id="{sg_geral}-ok" class="tab-content ativo">
+      <div class="acoes-wrap">
+        <div class="filtro-wrap"><input type="text" placeholder="Filtrar..." onkeyup="filtrar(this,'{sg_geral}-ok')"></div>
+      </div>
+      <div class="table-wrap">{tab_ok}</div>
+    </div>
+    <div id="{sg_geral}-so-erp" class="tab-content" data-data="{data_str}" data-grupo="{grupo}">
+      <div class="acoes-wrap">
+        <div class="filtro-wrap"><input type="text" placeholder="Filtrar..." onkeyup="filtrar(this,'{sg_geral}-so-erp')"></div>
+      </div>
+      <div class="table-wrap">{tab_so_erp}</div>
+    </div>
+    <div id="{sg_geral}-div-qtd" class="tab-content">
+      <div class="acoes-wrap">
+        <div class="filtro-wrap"><input type="text" placeholder="Filtrar..." onkeyup="filtrar(this,'{sg_geral}-div-qtd')"></div>
+      </div>
+      {tab_div_qtd}
+    </div>
+  </div>
+
+  <div class="detalhe-label">Detalhe por Cliente</div>
 
   <div class="subgrupo-nav">
     <span class="subgrupo-nav-label">Clientes:</span>
@@ -840,6 +888,7 @@ def gerar_dashboard(todos, data_ref):
   .subgrupo-btn.ativo {{ background:#7c3aed; border-color:#7c3aed; color:#fff; }}
   .subgrupo-section {{ display:none; }}
   .painel-sub {{ margin-top:0; }}
+  .detalhe-label {{ font-size:11px; color:#555; font-weight:600; text-transform:uppercase; letter-spacing:.8px; margin:20px 0 8px; padding-bottom:6px; border-bottom:1px solid #222; }}
 
   /* View toggle */
   .view-toggle {{ display:flex; gap:4px; background:#141414; padding:3px; border-radius:8px; border:1px solid #2d2d2d; }}
@@ -1067,7 +1116,7 @@ function abrirGrupo(d, sg) {{
 }}
 
 function abrirAba(sg, id, btn) {{
-  const container = document.getElementById('grupo-'+sg) || document.getElementById('subgrupo-'+sg);
+  const container = document.getElementById('grupo-'+sg) || document.getElementById('subgrupo-'+sg) || document.getElementById('geral-'+sg);
   if (container) {{
     container.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('ativo'));
     container.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('ativo'));
