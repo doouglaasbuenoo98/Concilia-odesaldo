@@ -10,7 +10,7 @@ from datetime import datetime
 # ── Paths ─────────────────────────────────────────────────────────────────────
 SAIDA_DIR   = os.path.dirname(os.path.abspath(__file__))
 DADOS_DIR   = os.path.join(SAIDA_DIR, "Dados")
-OUTPUT_DIR  = os.path.join(os.path.dirname(SAIDA_DIR), "output")
+OUTPUT_DIR  = os.path.join(os.path.dirname(SAIDA_DIR), "entrada", "output")
 HOME_HTML   = os.path.join(OUTPUT_DIR, "index.html")
 
 sys.path.insert(0, SAIDA_DIR)

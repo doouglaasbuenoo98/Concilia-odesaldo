@@ -151,8 +151,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
 
         elif self.path == "/api/atualizar_saida":
+            saida_script = os.path.join(os.path.dirname(BASE_DIR), "Saida", "reconciliacao.py")
             result = subprocess.run(
-                ["python", os.path.join("saida", "reconciliacao.py")],
+                ["python", saida_script],
                 capture_output=True, text=True, cwd=BASE_DIR
             )
             ok   = result.returncode == 0
